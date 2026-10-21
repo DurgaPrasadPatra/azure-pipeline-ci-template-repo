@@ -1,6 +1,6 @@
 
 # ============================================================
-# TEMPLATE: pipeline-template.yaml
+# TEMPLATE: static-website-build-pipeline-template.yaml
 # PURPOSE: Package and deploy a *static website* to Azure App Service
 # ASSUMPTION: The self-hosted agent is running Linux
 # ============================================================
