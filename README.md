@@ -1,5 +1,5 @@
 # azure-pipeline-ci-template-repo
-reusable template ci pipeline for war based project
+reusable template ci pipeline for static website based project
 # Azure DevOps template: line-by-line explanation and improved version
 
 Your template performs two main operations:
