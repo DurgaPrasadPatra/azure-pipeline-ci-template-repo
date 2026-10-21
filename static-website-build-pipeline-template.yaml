@@ -1,0 +1,106 @@
+
+# ============================================================
+# TEMPLATE: pipeline-template.yaml
+# PURPOSE: Package and deploy a *static website* to Azure App Service
+# ASSUMPTION: The self-hosted agent is running Linux
+# ============================================================
+
+# 1. Parameters supplied by the main azure-pipelines.yml
+parameters:
+  - name: azureserviceconnection
+    type: string
+
+  - name: applicationname
+    type: string
+
+# 2. Pipeline execution steps
+steps:
+
+  # ----------------------------------------------------------
+  # STEP 1: Prepare a clean staging directory for website files
+  # ----------------------------------------------------------
+  - task: Bash@3
+    displayName: 'Prepare website staging directory'
+    inputs:
+      targetType: 'inline'
+      script: |
+        set -euo pipefail
+
+        # Remove files left in the staging directory, if any.
+        rm -rf "$(Build.ArtifactStagingDirectory)/site"
+
+        # Create a directory to hold deployment files.
+        mkdir -p "$(Build.ArtifactStagingDirectory)/site"
+
+        echo "Website staging directory prepared."
+
+  # ----------------------------------------------------------
+  # STEP 2: Copy only website files; do not package .git
+  # ----------------------------------------------------------
+  - task: CopyFiles@2
+    displayName: 'Copy website files'
+    inputs:
+      SourceFolder: '$(Build.SourcesDirectory)'
+      Contents: |
+        **/*.html
+        **/*.css
+        **/*.js
+        **/*.json
+        **/*.png
+        **/*.jpg
+        **/*.jpeg
+        **/*.svg
+        **/*.ico
+        **/*.webp
+        **/*.gif
+        **/*.woff
+        **/*.woff2
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/site'
+      CleanTargetFolder: true
+      OverWrite: true
+
+  # ----------------------------------------------------------
+  # STEP 3: Create a ZIP containing the website files
+  # ----------------------------------------------------------
+  - task: ArchiveFiles@2
+    displayName: 'Create website deployment ZIP'
+    inputs:
+      rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/site'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/website.zip'
+      replaceExistingArchive: true
+
+  # ----------------------------------------------------------
+  # STEP 4: Verify that the ZIP exists and is valid
+  # ----------------------------------------------------------
+  - task: Bash@3
+    displayName: 'Validate deployment package'
+    inputs:
+      targetType: 'inline'
+      script: |
+        set -euo pipefail
+
+        PACKAGE="$(Build.ArtifactStagingDirectory)/website.zip"
+
+        # Fail if the archive was not created or is empty.
+        test -s "$PACKAGE"
+
+        # Check the archive structure and contents.
+        unzip -t "$PACKAGE"
+
+        # Display the packaged files for troubleshooting.
+        echo "Files included in deployment package:"
+        unzip -l "$PACKAGE"
+
+  # ----------------------------------------------------------
+  # STEP 5: Deploy the exact ZIP to Azure App Service
+  # ----------------------------------------------------------
+  - task: AzureWebApp@1
+    displayName: 'Deploy website to Azure App Service'
+    inputs:
+      azureSubscription: '${{ parameters.azureserviceconnection }}'
+      appType: 'webApp'
+      appName: '${{ parameters.applicationname }}'
+      package: '$(Build.ArtifactStagingDirectory)/website.zip'
+      deploymentMethod: 'auto'
